@@ -20,13 +20,13 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<Category, string> = {
-  electronics: "电子产品",
-  bag: "包/背包",
-  keys: "钥匙",
-  clothing: "衣物",
-  pet: "宠物",
-  document: "证件/文件",
-  other: "其他",
+  electronics: "Electronics",
+  bag: "Bag/backpack",
+  keys: "Keys",
+  clothing: "Clothing",
+  pet: "Pet",
+  document: "ID/documents",
+  other: "Other",
 };
 
 // ---------------------------------------------------------------------
@@ -34,13 +34,13 @@ export const CATEGORY_LABELS: Record<Category, string> = {
 // ---------------------------------------------------------------------
 export const createPostSchema = z.object({
   category: z.enum(CATEGORIES),
-  description: z.string().trim().min(1, "请填写物品描述").max(500),
+  description: z.string().trim().min(1, "Please enter an item description").max(500),
   photoUrl: z.string().url().optional().nullable(),
   lng: z.number().min(-180).max(180),
   lat: z.number().min(-90).max(90),
-  locationLabel: z.string().trim().min(1, "请填写拾获地点").max(200),
+  locationLabel: z.string().trim().min(1, "Please enter the found location").max(200),
   foundAt: z.string().datetime().optional(),
-  contactInfo: z.string().trim().min(1, "请填写联系方式").max(200),
+  contactInfo: z.string().trim().min(1, "Please enter contact info").max(200),
 });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;

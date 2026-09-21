@@ -4,7 +4,7 @@
 export function getCurrentPosition(): Promise<{ lng: number; lat: number }> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      reject(new Error("此浏览器不支持定位"));
+      reject(new Error("This browser does not support geolocation"));
       return;
     }
     navigator.geolocation.getCurrentPosition(

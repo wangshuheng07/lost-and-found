@@ -24,7 +24,7 @@ export default function FoundItemPage() {
       setLng(pos.lng.toFixed(6));
       setLat(pos.lat.toFixed(6));
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "获取定位失败，请手动填写经纬度");
+      setErrorMsg(err instanceof Error ? err.message : "Failed to get location. Please enter longitude/latitude manually.");
     }
   }
 
@@ -51,7 +51,7 @@ export default function FoundItemPage() {
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       setStatus("error");
-      setErrorMsg(body?.error ?? "提交失败，请重试");
+      setErrorMsg(body?.error ?? "Submission failed. Please try again.");
       return;
     }
 
@@ -62,13 +62,13 @@ export default function FoundItemPage() {
     return (
       <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="text-4xl">✅</div>
-        <h1 className="text-xl font-semibold">帖子已发布</h1>
-        <p className="text-sm text-zinc-500">感谢你把捡到的东西发布出来，失主可能很快就能通过搜索找到它。</p>
+        <h1 className="text-xl font-semibold">Post published</h1>
+        <p className="text-sm text-zinc-500">Thanks for posting what you found. The owner may be able to find it through search soon.</p>
         <Link
           href="/"
           className="mt-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-zinc-900"
         >
-          返回首页
+          Back to home
         </Link>
       </main>
     );
@@ -77,13 +77,13 @@ export default function FoundItemPage() {
   return (
     <main className="mx-auto max-w-md px-6 py-10">
       <Link href="/" className="text-sm text-zinc-500 hover:underline">
-        ← 返回首页
+        ← Back to home
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold">拾获者 · 发帖</h1>
-      <p className="mt-1 text-sm text-zinc-500">告诉我们你捡到了什么，失主搜索时才能找到这条帖子。</p>
+      <h1 className="mt-3 text-2xl font-semibold">Found something · Post</h1>
+      <p className="mt-1 text-sm text-zinc-500">Tell us what you found so the owner can find this post when searching.</p>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-5">
-        <Field label="类别">
+        <Field label="Category">
           <select
             className="input"
             value={category}
@@ -97,10 +97,10 @@ export default function FoundItemPage() {
           </select>
         </Field>
 
-        <Field label="物品描述">
+        <Field label="Item description">
           <textarea
             className="input min-h-[88px] resize-y"
-            placeholder="例如：黑色手机，深蓝色保护壳，背面有一道划痕"
+            placeholder="e.g. black phone, dark blue case, a scratch on the back"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
@@ -108,16 +108,16 @@ export default function FoundItemPage() {
           />
         </Field>
 
-        <Field label="照片">
+        <Field label="Photo">
           <div className="input flex items-center justify-between text-zinc-400">
-            <span>📷 图片上传（下一步接入）</span>
+            <span>📷 Image upload (coming next)</span>
           </div>
         </Field>
 
-        <Field label="拾获地点描述">
+        <Field label="Found location description">
           <input
             className="input"
-            placeholder="例如：DC 图书馆 2 楼自习区"
+            placeholder="e.g. DC Library, 2nd floor study area"
             value={locationLabel}
             onChange={(e) => setLocationLabel(e.target.value)}
             required
@@ -125,11 +125,11 @@ export default function FoundItemPage() {
           />
         </Field>
 
-        <Field label="拾获地点坐标">
+        <Field label="Found location coordinates">
           <div className="flex gap-2">
             <input
               className="input"
-              placeholder="经度 lng"
+              placeholder="Longitude (lng)"
               inputMode="decimal"
               value={lng}
               onChange={(e) => setLng(e.target.value)}
@@ -137,7 +137,7 @@ export default function FoundItemPage() {
             />
             <input
               className="input"
-              placeholder="纬度 lat"
+              placeholder="Latitude (lat)"
               inputMode="decimal"
               value={lat}
               onChange={(e) => setLat(e.target.value)}
@@ -149,12 +149,12 @@ export default function FoundItemPage() {
             onClick={handleUseMyLocation}
             className="mt-1 w-fit text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
           >
-            📍 使用我当前的位置
+            📍 Use my current location
           </button>
-          <p className="text-xs text-zinc-400">地图取点会在后续接入 Mapbox 后替换这两个输入框。</p>
+          <p className="text-xs text-zinc-400">Map-based picking will replace these two inputs once Mapbox is integrated.</p>
         </Field>
 
-        <Field label="拾获时间">
+        <Field label="Found time">
           <input
             className="input"
             type="date"
@@ -164,10 +164,10 @@ export default function FoundItemPage() {
           />
         </Field>
 
-        <Field label="联系方式">
+        <Field label="Contact info">
           <input
             className="input"
-            placeholder="微信 / 邮箱 / 电话"
+            placeholder="WeChat / email / phone"
             value={contactInfo}
             onChange={(e) => setContactInfo(e.target.value)}
             required
@@ -182,7 +182,7 @@ export default function FoundItemPage() {
           disabled={status === "submitting"}
           className="rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {status === "submitting" ? "提交中…" : "发布"}
+          {status === "submitting" ? "Submitting…" : "Post"}
         </button>
       </form>
     </main>

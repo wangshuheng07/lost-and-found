@@ -8,12 +8,12 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Lost & Found",
-  description: "结构化表单 + 规则化筛选查询的失物招领 MVP（无 AI 问答/匹配）",
+  description: "Lost & found MVP: structured forms + rule-based filtered search (no AI Q&A/matching)",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="zh" className="h-full antialiased">
+    <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
