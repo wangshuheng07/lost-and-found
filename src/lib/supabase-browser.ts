@@ -4,10 +4,10 @@ import { createBrowserClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Browser-side client (persists the session in cookies via @supabase/ssr,
-// so /auth/callback's server-side code exchange and client reads share the
-// same session). Separate from src/lib/supabase.ts, which is the
-// server-route client used for the anon-key-only create_post/search_posts
-// RPC calls and never carries a user session.
+// so it and src/lib/supabase-server.ts — used by Route Handlers like
+// /api/search — see the same session). Separate from src/lib/supabase.ts,
+// which is the anon-key-only client used for the create_post RPC and never
+// carries a user session.
 let client: SupabaseClient | null = null;
 
 export function getSupabaseBrowserClient(): SupabaseClient {
