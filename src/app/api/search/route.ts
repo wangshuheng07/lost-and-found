@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchQuerySchema, type PostResult } from "@/lib/schema";
-import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { getSupabaseClient } from "@/lib/supabase";
 
 // GET /api/search?category=&keyword=&lng=&lat=&radiusMeters=&hours=
 // Rule-based filter + sort against the posts table via the search_posts()
 // SQL function. No AI/embeddings involved — see supabase/migrations/0001_init.sql.
 //
-// Uses the session-aware server client (not the anon-only one in
-// src/lib/supabase.ts) so the signed-in user's session cookie rides along
-// on the RPC call: search_posts() checks there's a verified, signed-in
-// email itself (0004_open_search_to_any_signed_in_email.sql) — this route
-// just surfaces whatever it says.
+// search_posts() is open to anon again as of
+// 0005_reopen_search_no_auth.sql (no sign-in required), so this is back to
+// the plain anon-key-only client — no session to carry.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
@@ -37,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   let supabase;
   try {
-    supabase = await getSupabaseServerClient();
+    supabase = getSupabaseClient();
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Server is not configured yet" }, { status: 500 });
@@ -53,11 +51,6 @@ export async function GET(req: NextRequest) {
   });
 
   if (error) {
-    // 42501 = insufficient_privilege — search_posts()'s own "sign in to
-    // search" check. Anything else is a real server error.
-    if (error.code === "42501") {
-      return NextResponse.json({ error: error.message, code: "unauthorized" }, { status: 401 });
-    }
     console.error(error);
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
   }
