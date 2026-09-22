@@ -1,19 +1,25 @@
+"use client";
+
 import Link from "next/link";
-import { Logo } from "@/components/SiteHeader";
+import { usePathname } from "next/navigation";
+import { SiteBrand } from "@/components/SiteHeader";
 
 export function SiteFooter() {
+  const pathname = usePathname();
+  const branded = pathname === "/search" || pathname === "/found";
+
   return (
     <footer className="mt-20 border-t-2 border-ink bg-ink text-cream">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
         <div className="[&_span]:text-cream">
-          <Logo />
+          <SiteBrand />
           <p className="mt-3 max-w-xs text-sm text-cream/70">
             A simple way to get lost things back to the people who lost them.
           </p>
         </div>
 
         <div>
-          <h2 className="text-sm font-semibold text-gold">Boomerang</h2>
+          <h2 className="text-sm font-semibold text-gold">{branded ? "Boomerang" : "Lost & Found"}</h2>
           <ul className="mt-3 space-y-2 text-sm text-cream/80">
             <li>
               <Link href="/search" className="hover:text-gold">

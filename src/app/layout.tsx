@@ -18,7 +18,13 @@ const body = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Boomerang — Campus Lost & Found",
+  // "Boomerang" only shows up once someone's inside the app — see
+  // src/app/search/layout.tsx and src/app/found/layout.tsx, which set a
+  // page title that this template then applies the brand suffix to.
+  title: {
+    default: "Lost & Found — Waterloo Campus",
+    template: "%s · Boomerang",
+  },
   description:
     "Found something on campus? Post it in a minute. Lost something? Search by category, place and time and get it back.",
 };
