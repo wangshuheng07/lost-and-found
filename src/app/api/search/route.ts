@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { searchQuerySchema, type PostResult } from "@/lib/schema";
-import { getSupabaseClient } from "@/lib/supabase";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 // GET /api/search?category=&keyword=&lng=&lat=&radiusMeters=&hours=
 // Rule-based filter + sort against the posts table via the search_posts()
 // SQL function. No AI/embeddings involved — see supabase/migrations/0001_init.sql.
+//
+// Uses the session-aware server client (not the anon-only one in
+// src/lib/supabase.ts) so the signed-in user's session cookie rides along
+// on the RPC call: search_posts() checks it's a verified @uwaterloo.ca
+// email itself (0003_require_waterloo_auth_for_search.sql) — this route
+// just surfaces whatever it says.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
 
@@ -31,7 +37,7 @@ export async function GET(req: NextRequest) {
 
   let supabase;
   try {
-    supabase = getSupabaseClient();
+    supabase = await getSupabaseServerClient();
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Server is not configured yet" }, { status: 500 });
@@ -47,6 +53,11 @@ export async function GET(req: NextRequest) {
   });
 
   if (error) {
+    // 42501 = insufficient_privilege — search_posts()'s own "sign in with a
+    // uwaterloo.ca email" check. Anything else is a real server error.
+    if (error.code === "42501" || error.message?.includes("uwaterloo.ca")) {
+      return NextResponse.json({ error: error.message, code: "unauthorized" }, { status: 401 });
+    }
     console.error(error);
     return NextResponse.json({ error: "Search failed" }, { status: 500 });
   }

@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CATEGORIES, CATEGORY_LABELS, type Category, type PostResult } from "@/lib/schema";
 import { formatDistance, timeAgo } from "@/lib/format";
 import { CategoryIcon, Icon } from "@/components/Icons";
 import { Field } from "@/components/Field";
 import { LocationPicker } from "@/components/LocationPicker";
+import { useAuth } from "@/components/AuthProvider";
 
 const HOURS_OPTIONS = [
   { label: "Any time", value: "" },
@@ -15,6 +17,8 @@ const HOURS_OPTIONS = [
 ];
 
 export default function SearchPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [category, setCategory] = useState<Category | "">("");
   const [keyword, setKeyword] = useState("");
   const [lng, setLng] = useState("");
@@ -47,11 +51,41 @@ export default function SearchPage() {
     setLoading(false);
 
     if (!res.ok) {
-      setErrorMsg(body?.error ?? "Search failed. Please try again.");
+      setErrorMsg(
+        body?.code === "unauthorized"
+          ? "Your session expired. Sign in again to keep searching."
+          : (body?.error ?? "Search failed. Please try again.")
+      );
       return;
     }
 
     setResults(body.results as PostResult[]);
+  }
+
+  if (!authLoading && !user) {
+    return (
+      <main className="mx-auto max-w-md px-4 py-16 text-center sm:px-6">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-ink bg-gold shadow-[3px_3px_0_0_var(--ink)]">
+          <Icon name="shield" className="h-7 w-7" />
+        </div>
+        <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight">Sign in to search</h1>
+        <p className="mt-2 text-muted">
+          Search results include a finder&apos;s contact info, so we keep this part limited to verified
+          Waterloo students.
+        </p>
+        <Link href="/login" className="btn btn-gold mt-6">
+          Sign in with @uwaterloo.ca
+          <Icon name="arrow" className="h-4 w-4" />
+        </Link>
+        <p className="mt-6 text-sm text-muted">
+          Found something instead?{" "}
+          <Link href="/found" className="underline decoration-dotted underline-offset-4">
+            Anyone can post that
+          </Link>
+          , no account needed.
+        </p>
+      </main>
+    );
   }
 
   return (

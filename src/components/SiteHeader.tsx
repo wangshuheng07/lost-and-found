@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/Icons";
+import { useAuth } from "@/components/AuthProvider";
 
 export function Logo() {
   return (
@@ -17,6 +18,7 @@ export function Logo() {
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { user, loading, signOut } = useAuth();
 
   return (
     <header className="sticky top-0 z-20 border-b-2 border-ink bg-cream/95 backdrop-blur">
@@ -38,6 +40,20 @@ export function SiteHeader() {
           <Link href="/found" className="btn btn-gold btn-sm">
             Post a find
           </Link>
+
+          {!loading && (
+            <>
+              {user ? (
+                <button type="button" onClick={signOut} className="btn btn-white btn-sm" title={user.email}>
+                  Sign out
+                </button>
+              ) : (
+                <Link href="/login" className="btn btn-white btn-sm">
+                  Sign in
+                </Link>
+              )}
+            </>
+          )}
         </nav>
       </div>
     </header>
