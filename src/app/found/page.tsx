@@ -3,12 +3,27 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CATEGORIES, CATEGORY_LABELS, type Category } from "@/lib/schema";
-import { getCurrentPosition } from "@/lib/geolocation";
+import { getSupabaseClient } from "@/lib/supabase";
+import { Icon } from "@/components/Icons";
+import { Field } from "@/components/Field";
+import { LocationPicker } from "@/components/LocationPicker";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
+// Written out in full so Tailwind can find every class at build time.
+const CHECKED_TILE: Record<Category, string> = {
+  electronics: "peer-checked:bg-sky-soft",
+  bag: "peer-checked:bg-coral-soft",
+  keys: "peer-checked:bg-gold-soft",
+  clothing: "peer-checked:bg-lilac-soft",
+  pet: "peer-checked:bg-mint-soft",
+  document: "peer-checked:bg-sky-soft",
+  other: "peer-checked:bg-gold-soft",
+};
+
 export default function FoundItemPage() {
   const [category, setCategory] = useState<Category>("electronics");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [locationLabel, setLocationLabel] = useState("");
   const [lng, setLng] = useState("");
@@ -18,182 +33,234 @@ export default function FoundItemPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  async function handleUseMyLocation() {
-    try {
-      const pos = await getCurrentPosition();
-      setLng(pos.lng.toFixed(6));
-      setLat(pos.lat.toFixed(6));
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to get location. Please enter longitude/latitude manually.");
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("submitting");
-    setErrorMsg(null);
 
-    const res = await fetch("/api/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        category,
-        description,
-        photoUrl: null, // TODO: wire up Supabase Storage upload
-        lng: Number(lng),
-        lat: Number(lat),
-        locationLabel,
-        foundAt: new Date(foundAt).toISOString(),
-        contactInfo,
-      }),
-    });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
+    if (!lng || !lat) {
       setStatus("error");
-      setErrorMsg(body?.error ?? "Submission failed. Please try again.");
+      setErrorMsg("Please set where you found it, using your current location or coordinates.");
       return;
     }
 
-    setStatus("success");
+    setStatus("submitting");
+    setErrorMsg(null);
+
+    try {
+      let photoUrl: string | null = null;
+      if (photo) {
+        const extensions: Record<string, string> = {
+          "image/jpeg": "jpg",
+          "image/png": "png",
+          "image/webp": "webp",
+        };
+        const extension = extensions[photo.type];
+        if (!extension || photo.size > 5 * 1024 * 1024) {
+          throw new Error("Choose a JPEG, PNG, or WebP photo no larger than 5 MB.");
+        }
+
+        const storage = getSupabaseClient().storage.from("found-photos");
+        const { data, error } = await storage.upload(
+          `${crypto.randomUUID()}.${extension}`,
+          photo,
+          { contentType: photo.type, upsert: false }
+        );
+        if (error) throw new Error(`Photo upload failed: ${error.message}`);
+        photoUrl = storage.getPublicUrl(data.path).data.publicUrl;
+      }
+
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category,
+          description,
+          photoUrl,
+          lng: Number(lng),
+          lat: Number(lat),
+          locationLabel,
+          foundAt: new Date(foundAt).toISOString(),
+          contactInfo,
+        }),
+      });
+  
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setStatus("error");
+        setErrorMsg(body?.error ?? "Submission failed. Please try again.");
+        return;
+      }
+  
+      setStatus("success");
+    } catch (error) {
+      setStatus("error");
+      setErrorMsg(error instanceof Error ? error.message : "Submission failed. Please try again.");
+    }
+  }
+
+  function postAnother() {
+    setPhoto(null);
+    setDescription("");
+    setLocationLabel("");
+    setStatus("idle");
   }
 
   if (status === "success") {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-        <div className="text-4xl">✅</div>
-        <h1 className="text-xl font-semibold">Post published</h1>
-        <p className="text-sm text-zinc-500">Thanks for posting what you found. The owner may be able to find it through search soon.</p>
-        <Link
-          href="/"
-          className="mt-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-white dark:text-zinc-900"
-        >
-          Back to home
-        </Link>
+      <main className="mx-auto flex max-w-md flex-col items-center px-4 py-20 text-center sm:px-6">
+        <div className="flex h-20 w-20 items-center justify-center rounded-3xl border-2 border-ink bg-mint shadow-[4px_4px_0_0_var(--ink)]">
+          <Icon name="check" className="h-10 w-10" />
+        </div>
+        <h1 className="mt-6 font-display text-3xl font-extrabold tracking-tight">You&apos;re a legend</h1>
+        <p className="mt-2 text-muted">
+          Your post is live. If the owner searches for it, they&apos;ll find it and reach out to you.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <button type="button" onClick={postAnother} className="btn btn-gold">
+            Post another
+          </button>
+          <Link href="/" className="btn btn-white">
+            Back to home
+          </Link>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-md px-6 py-10">
-      <Link href="/" className="text-sm text-zinc-500 hover:underline">
-        ← Back to home
-      </Link>
-      <h1 className="mt-3 text-2xl font-semibold">Found something · Post</h1>
-      <p className="mt-1 text-sm text-zinc-500">Tell us what you found so the owner can find this post when searching.</p>
+    <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      <h1 className="font-display text-4xl font-extrabold tracking-tight">Post what you found</h1>
+      <p className="mt-2 text-muted">
+        Give the owner enough to recognise it, but keep one detail back so you can check it&apos;s really
+        theirs.
+      </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-5">
-        <Field label="Category">
-          <select
-            className="input"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as Category)}
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_LABELS[c]}
-              </option>
-            ))}
-          </select>
-        </Field>
+      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-6">
+        {/* 1 */}
+        <fieldset className="card flex flex-col gap-5 p-5 sm:p-6">
+          <Legend n={1} title="What did you find?" />
 
-        <Field label="Item description">
-          <textarea
-            className="input min-h-[88px] resize-y"
-            placeholder="e.g. black phone, dark blue case, a scratch on the back"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-            maxLength={500}
-          />
-        </Field>
-
-        <Field label="Photo">
-          <div className="input flex items-center justify-between text-zinc-400">
-            <span>📷 Image upload (coming next)</span>
+          <div>
+            <span className="text-sm font-semibold">Category</span>
+            <div role="radiogroup" aria-label="Category" className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {CATEGORIES.map((c) => (
+                <label key={c} className="cursor-pointer">
+                  <input
+                    type="radio"
+                    name="category"
+                    value={c}
+                    checked={category === c}
+                    onChange={() => setCategory(c)}
+                    className="peer sr-only"
+                  />
+                  <span
+                    className={`flex items-center gap-2 rounded-xl border-2 border-ink bg-white px-3 py-2.5 text-sm font-semibold transition peer-checked:shadow-[3px_3px_0_0_var(--ink)] peer-focus-visible:outline-[3px] peer-focus-visible:outline-sky ${CHECKED_TILE[c]}`}
+                  >
+                    <Icon name={c} className="h-4 w-4 flex-none" />
+                    {CATEGORY_LABELS[c]}
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
-        </Field>
 
-        <Field label="Found location description">
-          <input
-            className="input"
-            placeholder="e.g. DC Library, 2nd floor study area"
-            value={locationLabel}
-            onChange={(e) => setLocationLabel(e.target.value)}
-            required
-            maxLength={200}
-          />
-        </Field>
+          <Field label="Description">
+            <textarea
+              className="input min-h-24 resize-y"
+              placeholder="e.g. Black phone with a dark blue case"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              required
+              maxLength={500}
+            />
+          </Field>
 
-        <Field label="Found location coordinates">
-          <div className="flex gap-2">
+          <Field label="Photo (optional)" hint="JPEG, PNG, or WebP, up to 5 MB.">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="input"
+              disabled={status === "submitting"}
+              onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+            />
+          </Field>
+        </fieldset>
+
+        {/* 2 */}
+        <fieldset className="card flex flex-col gap-5 p-5 sm:p-6">
+          <Legend n={2} title="Where and when?" />
+
+          <Field label="Where was it?" hint="A place name people will recognise.">
             <input
               className="input"
-              placeholder="Longitude (lng)"
-              inputMode="decimal"
-              value={lng}
-              onChange={(e) => setLng(e.target.value)}
+              placeholder="e.g. DC Library, 2nd floor study area"
+              value={locationLabel}
+              onChange={(e) => setLocationLabel(e.target.value)}
               required
+              maxLength={200}
             />
-            <input
-              className="input"
-              placeholder="Latitude (lat)"
-              inputMode="decimal"
-              value={lat}
-              onChange={(e) => setLat(e.target.value)}
-              required
+          </Field>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-semibold">Pin the spot</span>
+            <LocationPicker
+              lng={lng}
+              lat={lat}
+              onChange={(nextLng, nextLat) => {
+                setLng(nextLng);
+                setLat(nextLat);
+              }}
+              onError={setErrorMsg}
             />
           </div>
-          <button
-            type="button"
-            onClick={handleUseMyLocation}
-            className="mt-1 w-fit text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            📍 Use my current location
-          </button>
-          <p className="text-xs text-zinc-400">Map-based picking will replace these two inputs once Mapbox is integrated.</p>
-        </Field>
 
-        <Field label="Found time">
-          <input
-            className="input"
-            type="date"
-            value={foundAt}
-            onChange={(e) => setFoundAt(e.target.value)}
-            required
-          />
-        </Field>
+          <Field label="Date found">
+            <input
+              className="input"
+              type="date"
+              value={foundAt}
+              onChange={(e) => setFoundAt(e.target.value)}
+              required
+            />
+          </Field>
+        </fieldset>
 
-        <Field label="Contact info">
-          <input
-            className="input"
-            placeholder="WeChat / email / phone"
-            value={contactInfo}
-            onChange={(e) => setContactInfo(e.target.value)}
-            required
-            maxLength={200}
-          />
-        </Field>
+        {/* 3 */}
+        <fieldset className="card flex flex-col gap-5 p-5 sm:p-6">
+          <Legend n={3} title="How can the owner reach you?" />
 
-        {errorMsg && <p className="text-sm text-red-600 dark:text-red-400">{errorMsg}</p>}
+          <Field label="Contact" hint="Shown to anyone who finds your post. A school email works well.">
+            <input
+              className="input"
+              placeholder="Email, phone or WeChat"
+              value={contactInfo}
+              onChange={(e) => setContactInfo(e.target.value)}
+              required
+              maxLength={200}
+            />
+          </Field>
+        </fieldset>
 
-        <button
-          type="submit"
-          disabled={status === "submitting"}
-          className="rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {status === "submitting" ? "Submitting…" : "Post"}
+        {errorMsg && (
+          <p role="alert" className="rounded-xl border-2 border-ink bg-coral-soft px-4 py-3 text-sm font-medium">
+            {errorMsg}
+          </p>
+        )}
+
+        <button type="submit" disabled={status === "submitting"} className="btn btn-gold w-full py-3 text-base">
+          {status === "submitting" ? "Posting…" : "Post it"}
         </button>
       </form>
     </main>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Legend({ n, title }: { n: number; title: string }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-semibold text-zinc-500">{label}</span>
-      {children}
-    </label>
+    <legend className="mb-1 flex items-center gap-3 px-0 font-display text-xl font-bold">
+      <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-ink bg-gold text-sm font-extrabold">
+        {n}
+      </span>
+      {title}
+    </legend>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { CATEGORIES, CATEGORY_LABELS, type Category, type PostResult } from "@/lib/schema";
-import { getCurrentPosition } from "@/lib/geolocation";
+import { formatDistance, timeAgo } from "@/lib/format";
+import { CategoryIcon, Icon } from "@/components/Icons";
+import { Field } from "@/components/Field";
+import { LocationPicker } from "@/components/LocationPicker";
 
 const HOURS_OPTIONS = [
   { label: "Any time", value: "" },
@@ -23,16 +25,6 @@ export default function SearchPage() {
   const [results, setResults] = useState<PostResult[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  async function handleUseMyLocation() {
-    try {
-      const pos = await getCurrentPosition();
-      setLng(pos.lng.toFixed(6));
-      setLat(pos.lat.toFixed(6));
-    } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : "Failed to get location. Please enter longitude/latitude manually.");
-    }
-  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -63,18 +55,19 @@ export default function SearchPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10">
-      <Link href="/" className="text-sm text-zinc-500 hover:underline">
-        ← Back to home
-      </Link>
-      <h1 className="mt-3 text-2xl font-semibold">Lost something · Search</h1>
-      <p className="mt-1 text-sm text-zinc-500">Filter by category, keyword, location, and time to see if anyone has found what you lost.</p>
+    <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <h1 className="font-display text-4xl font-extrabold tracking-tight">Find your item</h1>
+      <p className="mt-2 max-w-xl text-muted">
+        Tell us what you lost and roughly where. We&apos;ll show what people have found, closest and newest
+        first.
+      </p>
 
-      <form onSubmit={handleSearch} className="mt-6 flex flex-col gap-4 rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Category">
+      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[22rem_1fr]">
+        {/* Filters */}
+        <form onSubmit={handleSearch} className="card flex flex-col gap-5 p-5 lg:sticky lg:top-24">
+          <Field label="What is it?">
             <select className="input" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
-              <option value="">All categories</option>
+              <option value="">Anything</option>
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
                   {CATEGORY_LABELS[c]}
@@ -82,7 +75,17 @@ export default function SearchPage() {
               ))}
             </select>
           </Field>
-          <Field label="Time range">
+
+          <Field label="Keywords">
+            <input
+              className="input"
+              placeholder="e.g. black iPhone, blue backpack"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+            />
+          </Field>
+
+          <Field label="Found within">
             <select className="input" value={hours} onChange={(e) => setHours(e.target.value)}>
               {HOURS_OPTIONS.map((o) => (
                 <option key={o.label} value={o.value}>
@@ -91,99 +94,127 @@ export default function SearchPage() {
               ))}
             </select>
           </Field>
-        </div>
 
-        <Field label="Keywords">
-          <input
-            className="input"
-            placeholder="e.g. black iPhone, blue backpack"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-          />
-        </Field>
-
-        <Field label="Search center (optional; leave blank to skip distance filtering)">
-          <div className="flex gap-2">
-            <input
-              className="input"
-              placeholder="Longitude (lng)"
-              inputMode="decimal"
-              value={lng}
-              onChange={(e) => setLng(e.target.value)}
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-semibold">Near where you lost it</span>
+            <LocationPicker
+              lng={lng}
+              lat={lat}
+              onChange={(nextLng, nextLat) => {
+                setLng(nextLng);
+                setLat(nextLat);
+              }}
+              onError={setErrorMsg}
             />
-            <input
-              className="input"
-              placeholder="Latitude (lat)"
-              inputMode="decimal"
-              value={lat}
-              onChange={(e) => setLat(e.target.value)}
-            />
-            <select className="input max-w-[9rem]" value={radiusMeters} onChange={(e) => setRadiusMeters(e.target.value)}>
-              <option value="500">Within 500m</option>
-              <option value="1000">Within 1km</option>
-              <option value="5000">Within 5km</option>
-              <option value="20000">Within 20km</option>
-            </select>
+            {lng && lat && (
+              <select
+                className="input mt-1"
+                aria-label="Search radius"
+                value={radiusMeters}
+                onChange={(e) => setRadiusMeters(e.target.value)}
+              >
+                <option value="500">Within 500 m</option>
+                <option value="1000">Within 1 km</option>
+                <option value="5000">Within 5 km</option>
+                <option value="20000">Within 20 km</option>
+              </select>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={handleUseMyLocation}
-            className="mt-1 w-fit text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-          >
-            📍 Use my current location
+
+          {errorMsg && (
+            <p role="alert" className="rounded-xl border-2 border-ink bg-coral-soft px-3 py-2 text-sm font-medium">
+              {errorMsg}
+            </p>
+          )}
+
+          <button type="submit" disabled={loading} className="btn btn-gold w-full">
+            <Icon name="search" className="h-4 w-4" />
+            {loading ? "Searching…" : "Search"}
           </button>
-        </Field>
+        </form>
 
-        {errorMsg && <p className="text-sm text-red-600 dark:text-red-400">{errorMsg}</p>}
+        {/* Results */}
+        <section aria-live="polite">
+          {results === null && (
+            <EmptyState
+              title="Ready when you are"
+              body="Set a few filters and hit Search. The more you tell us, the shorter the list."
+            />
+          )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {loading ? "Searching…" : "Search"}
-        </button>
-      </form>
+          {results !== null && results.length === 0 && (
+            <EmptyState
+              title="Nothing matches yet"
+              body="Try a wider time range or a bigger radius, or search with fewer keywords. New items are posted all the time."
+            />
+          )}
 
-      <section className="mt-8">
-        {results === null && (
-          <p className="text-sm text-zinc-400">Set your filters and click “Search” to see results.</p>
-        )}
-        {results !== null && results.length === 0 && (
-          <p className="text-sm text-zinc-400">No found-item posts match. Try different filters.</p>
-        )}
-        <ul className="flex flex-col gap-3">
-          {results?.map((r) => (
-            <li key={r.id} className="flex gap-4 rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-              <div className="flex h-16 w-16 flex-none items-center justify-center rounded-lg bg-orange-50 text-2xl dark:bg-orange-950">
-                📦
-              </div>
-              <div className="flex min-w-0 flex-col gap-1">
-                <span className="w-fit rounded-full bg-orange-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-orange-700 dark:bg-orange-950 dark:text-orange-300">
-                  {CATEGORY_LABELS[r.category]}
-                </span>
-                <p className="truncate font-medium">{r.description}</p>
-                <p className="text-xs text-zinc-500">
-                  Found at {r.locationLabel} · {new Date(r.foundAt).toLocaleString()}
-                  {r.distanceMeters != null && ` · ${Math.round(r.distanceMeters)}m away`}
-                </p>
-                <p className="text-xs text-zinc-500">Contact: {r.contactInfo}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <p className="mt-8 text-xs text-zinc-400">A map view (Snapchat-style pins) will be added to this page once Mapbox is integrated.</p>
+          {results !== null && results.length > 0 && (
+            <>
+              <p className="mb-4 text-sm font-semibold text-muted">
+                {results.length} item{results.length === 1 ? "" : "s"} found
+              </p>
+              <ul className="flex flex-col gap-4">
+                {results.map((r) => (
+                  <li key={r.id}>
+                    <ResultCard post={r} />
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      </div>
     </main>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function ResultCard({ post }: { post: PostResult }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-xs font-semibold text-zinc-500">{label}</span>
-      {children}
-    </label>
+    <article className="card flex gap-4 p-4 sm:p-5">
+      <CategoryIcon category={post.category} className="h-16 w-16" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border-2 border-ink bg-gold-soft px-2.5 py-0.5 text-xs font-bold">
+            {CATEGORY_LABELS[post.category]}
+          </span>
+          {post.distanceMeters != null && (
+            <span className="rounded-full border-2 border-ink bg-white px-2.5 py-0.5 text-xs font-bold">
+              {formatDistance(post.distanceMeters)} away
+            </span>
+          )}
+        </div>
+
+        <h2 className="font-display text-lg font-bold leading-snug">{post.description}</h2>
+
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="pin" className="h-4 w-4" />
+            {post.locationLabel}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="clock" className="h-4 w-4" />
+            {timeAgo(post.foundAt)}
+          </span>
+        </p>
+
+        <p className="mt-1 inline-flex w-fit max-w-full items-center gap-2 rounded-xl bg-cream px-3 py-2 text-sm font-semibold">
+          <Icon name="mail" className="h-4 w-4 flex-none" />
+          <span className="truncate">{post.contactInfo}</span>
+        </p>
+      </div>
+    </article>
+  );
+}
+
+function EmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="card flex flex-col items-center gap-3 border-dashed px-6 py-14 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-ink bg-gold-soft">
+        <Icon name="search" className="h-7 w-7" />
+      </div>
+      <h2 className="font-display text-xl font-bold">{title}</h2>
+      <p className="max-w-sm text-sm text-muted">{body}</p>
+    </div>
   );
 }

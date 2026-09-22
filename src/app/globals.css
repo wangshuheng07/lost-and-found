@@ -1,48 +1,123 @@
 @import "tailwindcss";
 
+/* Design tokens — bright, playful, campus-y. Ink outlines + hard shadows on a
+   warm cream page; gold is the brand color, the rest are accents used to
+   tell item categories apart. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #1a1a17;
+  --cream: #fff9ea;
+  color-scheme: light;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-ink: var(--ink);
+  --color-cream: var(--cream);
+  --color-muted: #66655c;
+  --color-gold: #ffc933;
+  --color-gold-soft: #ffeda8;
+  --color-coral: #ff6f59;
+  --color-coral-soft: #ffd9d1;
+  --color-sky: #59b3ff;
+  --color-sky-soft: #d3ebff;
+  --color-mint: #5ed6a6;
+  --color-mint-soft: #d1f4e6;
+  --color-lilac: #b39dff;
+  --color-lilac-soft: #e6dfff;
+  --font-sans: var(--font-dm-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-bricolage), var(--font-dm-sans), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-sky);
+  outline-offset: 2px;
+}
+
+/* ---- Buttons ---------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 2px solid var(--ink);
+  border-radius: 9999px;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+  box-shadow: 3px 3px 0 0 var(--ink);
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 0 var(--ink);
+}
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--ink);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.btn-gold {
+  background: var(--color-gold);
+}
+.btn-white {
+  background: #fff;
+}
+.btn-sm {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8125rem;
+  box-shadow: 2px 2px 0 0 var(--ink);
+}
+
+/* ---- Surfaces & inputs ------------------------------------------------ */
+.card {
+  border: 2px solid var(--ink);
+  border-radius: 1.25rem;
+  background: #fff;
 }
 
 .input {
   width: 100%;
-  border-radius: 0.5rem;
-  border: 1px solid rgb(228 228 231);
-  background: white;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: inherit;
+  border: 2px solid var(--ink);
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.6rem 0.85rem;
+  font-size: 1rem; /* 16px keeps iOS Safari from zooming on focus */
+  color: var(--ink);
 }
-
+.input::placeholder {
+  color: #9a988c;
+}
 .input:focus {
-  outline: 2px solid rgb(37 99 235);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: 0 0 0 4px var(--color-gold);
 }
 
-@media (prefers-color-scheme: dark) {
-  .input {
-    border-color: rgb(63 63 70);
-    background: rgb(24 24 27);
+/* Highlighter-pen underline for one word in a headline */
+.marker {
+  background: linear-gradient(transparent 60%, var(--color-gold) 60%);
+  padding: 0 0.1em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .btn:hover,
+  .btn:active {
+    transition: none;
+    transform: none;
   }
 }

@@ -42,7 +42,8 @@ directly to get around that.
 ## Setup
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql`.
+2. In the Supabase SQL editor, run `supabase/migrations/0001_init.sql`, then
+   `supabase/migrations/0002_found_photos.sql` to enable photo uploads.
 3. `cp .env.local.example .env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL` /
    `NEXT_PUBLIC_SUPABASE_ANON_KEY` from Project Settings → API.
 4. `npm install`
