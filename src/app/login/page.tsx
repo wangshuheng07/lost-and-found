@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/Icons";
 import { Field } from "@/components/Field";
-import { useAuth, isWaterlooEmail } from "@/components/AuthProvider";
+import { useAuth } from "@/components/AuthProvider";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type Step =
@@ -22,11 +22,6 @@ export default function LoginPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   async function sendCode(targetEmail: string) {
-    if (!isWaterlooEmail(targetEmail)) {
-      setErrorMsg("Use your @uwaterloo.ca email — search is limited to Waterloo students.");
-      return;
-    }
-
     setStep({ name: "sending" });
     setErrorMsg(null);
 
@@ -160,18 +155,18 @@ export default function LoginPage() {
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-ink bg-gold shadow-[3px_3px_0_0_var(--ink)]">
         <Icon name="shield" className="h-7 w-7" />
       </div>
-      <h1 className="mt-5 font-display text-4xl font-extrabold tracking-tight">Waterloo students only</h1>
+      <h1 className="mt-5 font-display text-4xl font-extrabold tracking-tight">Sign in to search</h1>
       <p className="mt-2 text-muted">
-        Searching shows you a finder&apos;s contact info, so we keep it limited to verified Waterloo
-        students. We&apos;ll email you a 6-digit code — no password.
+        Searching shows you a finder&apos;s contact info, so we ask you to verify an email first.
+        We&apos;ll send you a 6-digit code — no password.
       </p>
 
       <form onSubmit={handleEmailSubmit} className="card mt-8 flex flex-col gap-4 p-5 sm:p-6">
-        <Field label="Waterloo email">
+        <Field label="Email">
           <input
             className="input"
             type="email"
-            placeholder="you@uwaterloo.ca"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required

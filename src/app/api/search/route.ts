@@ -8,8 +8,8 @@ import { getSupabaseServerClient } from "@/lib/supabase-server";
 //
 // Uses the session-aware server client (not the anon-only one in
 // src/lib/supabase.ts) so the signed-in user's session cookie rides along
-// on the RPC call: search_posts() checks it's a verified @uwaterloo.ca
-// email itself (0003_require_waterloo_auth_for_search.sql) — this route
+// on the RPC call: search_posts() checks there's a verified, signed-in
+// email itself (0004_open_search_to_any_signed_in_email.sql) — this route
 // just surfaces whatever it says.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -53,9 +53,9 @@ export async function GET(req: NextRequest) {
   });
 
   if (error) {
-    // 42501 = insufficient_privilege — search_posts()'s own "sign in with a
-    // uwaterloo.ca email" check. Anything else is a real server error.
-    if (error.code === "42501" || error.message?.includes("uwaterloo.ca")) {
+    // 42501 = insufficient_privilege — search_posts()'s own "sign in to
+    // search" check. Anything else is a real server error.
+    if (error.code === "42501") {
       return NextResponse.json({ error: error.message, code: "unauthorized" }, { status: 401 });
     }
     console.error(error);

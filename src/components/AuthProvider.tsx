@@ -44,9 +44,3 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
-
-/** Is this user's verified email a uwaterloo.ca address? Client-side hint
- * only — the real check lives in search_posts() at the database layer. */
-export function isWaterlooEmail(email: string | null | undefined) {
-  return !!email && /@uwaterloo\.ca$/i.test(email);
-}

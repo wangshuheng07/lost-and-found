@@ -19,17 +19,17 @@ src/lib/supabase.ts        lazy Supabase client (anon key only, no user session 
 src/lib/supabase-browser.ts   browser Supabase client (session in cookies, used by login/AuthProvider)
 src/lib/supabase-server.ts    server Supabase client (reads the session cookie, used by /api/search)
 src/lib/geolocation.ts     browser geolocation helper ("use my current location")
-src/middleware.ts          refreshes the auth session cookie on every request
+src/proxy.ts               refreshes the auth session cookie on every request
 src/components/AuthProvider.tsx   client-side auth context (current user, sign out)
-src/app/login/page.tsx     Waterloo-only sign-in (email magic link)
-src/app/auth/callback/route.ts    exchanges the magic-link code for a session
+src/app/login/page.tsx     sign-in for search (emailed 6-digit code, no password)
 src/app/found/page.tsx     finder's "post what you found" form — no account needed
 src/app/search/page.tsx    lost person's search/filter form + results list — sign-in required
 src/app/api/posts/route.ts    POST — create a found-item post
 src/app/api/search/route.ts   GET  — filter + sort search (session-aware, see auth below)
 supabase/migrations/0001_init.sql   posts table + PostGIS + the two SQL functions
 supabase/migrations/0002_found_photos.sql   found-photos Storage bucket + upload policy
-supabase/migrations/0003_require_waterloo_auth_for_search.sql   gates search_posts to @uwaterloo.ca
+supabase/migrations/0003_require_waterloo_auth_for_search.sql   gates search_posts to signed-in users
+supabase/migrations/0004_open_search_to_any_signed_in_email.sql   drops the @uwaterloo.ca-only restriction 0003 added
 ```
 
 ### Why two SQL functions instead of a plain table query
@@ -52,39 +52,56 @@ directly to get around that.
 Anyone can post a found item at `/found` — no account needed, since whoever
 picks something up on campus (student, staff, visitor) should be able to
 report it with no friction. `/search` returns `contact_info`, though, so
-*that* side is gated to signed-in `@uwaterloo.ca` students:
+*that* side is gated to a signed-in, email-verified session (any email —
+this was Waterloo-only for a while, see `0003` then `0004` below):
 
-- Sign-in is a Supabase Auth email magic link (`/login` → `signInWithOtp`),
-  not a password. `middleware.ts` + `src/lib/supabase-server.ts` keep the
-  session in a cookie shared between the browser and Route Handlers.
-- The domain check itself lives in the database, not just the client:
-  `search_posts()` (in `0003_require_waterloo_auth_for_search.sql`) reads the
-  caller's verified email via `auth.email()` and raises an error for anything
-  that isn't `@uwaterloo.ca`, so calling the RPC directly with some other
-  session doesn't get around it. `/api/search` just relays that error as a
-  401.
+- Sign-in is a Supabase Auth emailed 6-digit code (`/login` →
+  `signInWithOtp`, then `verifyOtp`), not a password and not a clickable
+  link — Waterloo's Office 365 mailboxes run Microsoft Safe Links, which
+  auto-"clicks" every link in incoming mail to scan it, silently burning a
+  one-time magic-link token before the student opens the email. A typed
+  code has nothing for a scanner to click. `src/proxy.ts` +
+  `src/lib/supabase-server.ts` keep the session in a cookie shared between
+  the browser and Route Handlers.
+- The check lives in the database, not just the client: `search_posts()`
+  reads `auth.email()` and raises an error for anyone not signed in, so
+  calling the RPC directly with no session doesn't get around it.
+  `/api/search` just relays that error as a 401.
+  `0003_require_waterloo_auth_for_search.sql` originally restricted this
+  further to `@uwaterloo.ca`, but Waterloo's Microsoft/Entra tenant blocks
+  students from consenting to third-party sign-in apps, which ruled out
+  "Sign in with Microsoft" as a way around the email deliverability issue —
+  `0004_open_search_to_any_signed_in_email.sql` drops that domain check
+  again, so any verified email can search.
 
 ## Setup
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. In the Supabase SQL editor, run, in order:
    `supabase/migrations/0001_init.sql`,
-   `supabase/migrations/0002_found_photos.sql` (photo uploads), then
-   `supabase/migrations/0003_require_waterloo_auth_for_search.sql`
-   (gates search to `@uwaterloo.ca`).
-3. In Authentication → URL Configuration, add
-   `http://localhost:3000/auth/callback` (and your deployed URL's
-   `/auth/callback`) to **Redirect URLs**. Email auth is on by default, so no
-   other Auth settings need to change.
+   `supabase/migrations/0002_found_photos.sql` (photo uploads),
+   `supabase/migrations/0003_require_waterloo_auth_for_search.sql`, then
+   `supabase/migrations/0004_open_search_to_any_signed_in_email.sql`
+   (gates search to any signed-in email).
+3. Authentication → Email Templates → **Magic Link**: delete the
+   `<a href="{{ .ConfirmationURL }}">` link and replace it with the plain
+   `{{ .Token }}` variable — this is what makes sign-in a typed code instead
+   of a link (see "Who needs to sign in" above for why that matters for
+   Waterloo's mailboxes specifically). Authentication → Settings → SMTP
+   Settings: Supabase's own mailer has a very low rate limit, fine for a
+   couple of manual tests but not for real use — point it at a real SMTP
+   provider (Gmail with an
+   [App Password](https://myaccount.google.com/apppasswords), Resend, etc.)
+   instead.
 4. `cp .env.local.example .env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL` /
    `NEXT_PUBLIC_SUPABASE_ANON_KEY` from Project Settings → API.
 5. `npm install`
 6. `npm run dev` → http://localhost:3000
 
-`/found` works immediately. `/search` needs step 3 done and a real
-`@uwaterloo.ca` inbox to click the sign-in link from (the "use my current
-location" button, on both pages, needs `https://` or `localhost` — browsers
-block geolocation on plain `http://`).
+`/found` works immediately. `/search` needs step 3 done and a real inbox to
+receive the sign-in code at (the "use my current location" button, on both
+pages, needs `https://` or `localhost` — browsers block geolocation on plain
+`http://`).
 
 ## Next up (in order)
 
@@ -97,5 +114,4 @@ block geolocation on plain `http://`).
    before it's shown) would be a further step before this is more than a
    class demo.
 3. Deploy to Vercel (connect the GitHub repo, add the same env vars in
-   Project Settings → Environment Variables, and add the Vercel URL's
-   `/auth/callback` to Supabase's Redirect URLs).
+   Project Settings → Environment Variables).

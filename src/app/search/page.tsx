@@ -70,11 +70,11 @@ export default function SearchPage() {
         </div>
         <h1 className="mt-5 font-display text-3xl font-extrabold tracking-tight">Sign in to search</h1>
         <p className="mt-2 text-muted">
-          Search results include a finder&apos;s contact info, so we keep this part limited to verified
-          Waterloo students.
+          Search results include a finder&apos;s contact info, so we ask you to sign in with a verified
+          email first.
         </p>
         <Link href="/login" className="btn btn-gold mt-6">
-          Sign in with @uwaterloo.ca
+          Sign in
           <Icon name="arrow" className="h-4 w-4" />
         </Link>
         <p className="mt-6 text-sm text-muted">
